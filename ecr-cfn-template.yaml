@@ -4,7 +4,7 @@ Resources:
   FileExtractorECR:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: "file-extractor"
+      RepositoryName: "file-processor"
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
@@ -13,7 +13,7 @@ Resources:
             Principal:
               AWS:
                 - "arn:aws:iam::573128978443:user/doug"
-#                - "arn:aws:codebuild:ap-southeast-2:573128978443:project/file-extractor"
+#                - "arn:aws:codebuild:ap-southeast-2:573128978443:project/file-processor"
             Action:
               - "ecr:GetDownloadUrlForLayer"
               - "ecr:BatchGetImage"
