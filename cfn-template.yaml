@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Setup file-extractor including its input bucket and output SQS queue
+Parameters:
+
+  QueueArn:
+    Description: Queue the file contents is written to (line by line)
+    Type: String
+    Default: 'arn:aws:sqs:ap-southeast-2:573128978443:file-content-queue'
+
+  LambdaImage:
+    Type: String
+    Default: '573128978443.dkr.ecr.ap-southeast-2.amazonaws.com/file-processor:0.0.4'
+
+Resources:
+
+  FileAProcessor:
+    Type: AWS::Lambda::Function
+    DeletionPolicy: Delete
+    Properties:
+      FunctionName: file-a-processor
+      PackageType: Image
+      Code:
+        ImageUri: !Ref LambdaImage # "573128978443.dkr.ecr.ap-southeast-2.amazonaws.com/file-processor:0.0.4"
+      MemorySize: 256
+      Timeout: 30
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  FileBProcessor:
+    Type: AWS::Lambda::Function
+    DeletionPolicy: Delete
+    Properties:
+      FunctionName: file-b-processor
+      PackageType: Image
+      Code:
+        ImageUri: !Ref LambdaImage #"573128978443.dkr.ecr.ap-southeast-2.amazonaws.com/file-processor:0.0.4"
+      MemorySize: 256
+      Timeout: 30
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  # See filter guide https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventfiltering.html#filtering-SQS
+  LambdaAFunctionEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: true
+      EventSourceArn: !Ref QueueArn
+      FunctionName: !GetAtt FileAProcessor.Arn
+      FilterCriteria:
+        Filters:
+#          - Pattern: '{ "messageAttributes": {"contentType": {"stringValue": ["a"]}} }'
+          - Pattern: '{ "body": {"type": ["a"]} }'
+
+  LambdaBFunctionEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: true
+      EventSourceArn: !Ref QueueArn
+      FunctionName: !GetAtt FileBProcessor.Arn
+      FilterCriteria:
+        Filters:
+          #          - Pattern: '{ "messageAttributes": {"contentType": {"stringValue": ["a"]}} }'
+          - Pattern: '{ "body": {"type": ["b"]} }'
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: SQSPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:ChangeMessageVisibility
+                Resource: !Ref QueueArn
+
+
+
+
+
